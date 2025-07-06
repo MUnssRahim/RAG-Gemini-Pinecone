@@ -8,7 +8,8 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 import streamlit as st
-import pinecone
+from langchain_pinecone import Pinecone as LangPinecone
+from pinecone import Pinecone
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,8 +22,12 @@ PineconeAPIKEY = os.getenv("Pinecone_API_KEY")
 genai.configure(api_key=GoogleAPIKEY)
 
 # Initialize Pinecone
-pinecone.init(api_key=PineconeAPIKEY)
-index_name = "pdf-index"
+pc = Pinecone(api_key=PINECONE_API_KEY)  
+index = pc.Index(index_name)
+
+
+index_name = "store1"
+index = pc.Index(index_name)
 
 def getpdftext(file):
     """Extracts text from a PDF file."""
@@ -40,18 +45,20 @@ def texttochunk(text, chunk_size=10000, chunk_overlap=50):
 
 def getconversation(prompt_template):
     """Creates a question-answering chain."""
-    model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.5)
+    model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.7)
     prompt = PromptTemplate(template=prompt_template, input_variables=['context', 'questions'])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
     return chain
 
 def storetoPinecone(text_chunks):
-    """Creates a local vector store and uploads to Pinecone."""
-    try:
-        embeddings = GoogleGenerativeAIEmbeddings(model="embedding-v1")  # Example model name
-        vectorstore = Pinecone.from_texts(text_chunks, embedding=embeddings, index_name=index_name)
-    except Exception as e:
-        raise
+    embeddings = GoogleGenerativeAIEmbeddings(model="embedding-v1") 
+    LangPinecone.from_texts(
+        texts=chunks,
+        embedding=embeddings,
+        index_name=index_name
+    )
+    print("Stored content in Pinecone")
+
 
 def userinput(userquestion, chain):
     """Handles user input and generates a response."""
